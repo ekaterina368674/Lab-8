@@ -1,69 +1,64 @@
-import time
-
 import cv2
+import numpy as np
+from time import sleep
 
 
-def image_processing():
-    img = cv2.imread('img_test.jpg')
-    #cv2.imshow('image', img)
-    w, h = img.shape[:2]
-    #(cX, cY) = (w // 2, h // 2)
-    #M = cv2.getRotationMatrix2D((cX, cY), 45, 1.0)
-    #rotated = cv2.warpAffine(img, M, (w, h))
-    #cv2.imshow('rotated', rotated)
-
-    #cat = img[250:580, 20:280]
-    #cv2.imshow('image', cat)
-
-    #r = cv2.selectROI(img)
-    #image_cropped = img[int(r[1]):int(r[1] + r[3]), int(r[0]):int(r[0] + r[2])]
-    #cv2.imshow('cropped', image_cropped)
-
-    cv2.line(img, (0, 0), (580, 600), (255, 0, 0), 5)
-    cv2.rectangle(img, (384, 10), (580, 128), (0, 252, 0), 3)
-    cv2.putText(img, 'Lab. No 8', (10, 500), cv2.FONT_HERSHEY_SIMPLEX, 3,
-                (0, 0, 255), 2, cv2.LINE_AA)
-    cv2.imshow('img', img)
+def task_1():
+    img = cv2.imread('images/variant-4.png')
+    # выделяем голубой канал
+    b_chnl = img[:,:,0]
+    # создаем пустое изображение (того же размера)
+    b_img = np.zeros(img.shape)
+    # записываем голубой канал
+    b_img[:,:,0] = b_chnl
+    # показываем результат
+    cv2.imshow('blue channel', b_img)
 
 
-def video_processing():
-    cap = cv2.VideoCapture(1)
-    down_points = (640, 480)
-    i = 0
-    while True:
+def task_2():
+    # подключаемся к камере
+    cap = cv2.VideoCapture(0)
+    # используемое разрешение
+    resolution = (640, 480)
+    # середина экрана относительно горизонтали
+    middle_x = resolution[0] // 2
+    for tick in range(120):
+        sleep(0.5)  # в течение 120*0.5 = 60 секунд...
+        # читаем фрейм
         ret, frame = cap.read()
         if not ret:
-            break
+            continue  # повтор при некорректной попытке
 
-        frame = cv2.resize(frame, down_points, interpolation=cv2.INTER_LINEAR)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (21, 21), 0)
-        ret, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY_INV)
-
-        contours, hierarchy = cv2.findContours(thresh,
-                            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        if len(contours) > 0:
+        # приводим изображение к используемому разрешению
+        frame = cv2.resize(frame, resolution, interpolation=cv2.INTER_LINEAR)
+        # ищем метку по контурам в оттенках серого
+        gray = cv2.GaussianBlur(
+            cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY),
+            (21, 21), 0
+        )
+        thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY_INV)[1]
+        contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0]
+        # если контур(-ы) найдены
+        if len(contours):
+            # выбираем наибольший по площади
             c = max(contours, key=cv2.contourArea)
+            # запоминаем размеры
             x, y, w, h = cv2.boundingRect(c)
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            if i % 5 == 0:
-                a = x + (w // 2)
-                b = y + (h // 2)
-                print(a, b)
+            # если центр метки правее середины экрана
+            if x + (w // 2) > middle_x:
+                # выводим соответствующий текст
+                cv2.putText(
+                    frame, 'МЕТКА СПРАВА!', (middle_x, 20), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 0, 0), 2, 2
+                )
 
-        cv2.imshow('frame', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        time.sleep(0.1)
-        i += 1
-
+        # показываем результирующий фрейм
+        cv2.imshow('Cam', frame)
+    # отключаемся от камеры
     cap.release()
 
 
 if __name__ == '__main__':
-    #image_processing()
-    video_processing()
-
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    task_1()
+    # task_2()
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
